@@ -1,0 +1,67 @@
+import cv2
+import numpy as np
+
+# Parameters
+image_width = 200
+image_height = 150
+amplitude = 10  # Max vertical shift
+frequency = 2 * np.pi / image_width  # One full wave across the image
+
+# Create a sample image (white background with black text)
+image = np.ones((image_height, image_width), dtype=np.uint8) * 255
+cv2.putText(image, "Sample Text", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 0, 2)
+
+# Sample 20-point bounding box (e.g., 10 points top, 10 points bottom)
+# Approximating a rectangular box around "Sample Text"
+bounding_box = [
+    (50, 90), (60, 90), (70, 90), (80, 90), (90, 90), 
+    (100, 90), (110, 90), (120, 90), (130, 90), (140, 90),  # Top edge
+    (50, 110), (60, 110), (70, 110), (80, 110), (90, 110), 
+    (100, 110), (110, 110), (120, 110), (130, 110), (140, 110)  # Bottom edge
+]
+
+# Step 1: Create displacement map for sine augmentation
+x_map = np.zeros((image_height, image_width), dtype=np.float32)
+y_map = np.zeros((image_height, image_width), dtype=np.float32)
+
+for y in range(image_height):
+    for x in range(image_width):
+        x_map[y, x] = x  # x-coordinates remain unchanged
+        y_map[y, x] = y + amplitude * np.sin(frequency * x)  # y-coordinates shift
+
+# Step 2: Apply sine augmentation to the image
+augmented_image = cv2.remap(image, x_map, y_map, interpolation=cv2.INTER_LINEAR)
+
+# Step 3: Apply sine augmentation to the bounding box
+augmented_box = []
+for x, y in bounding_box:
+    y_new = y + amplitude * np.sin(frequency * x)
+    augmented_box.append((x, y_new))
+
+# Step 4: Visualize the result (optional)
+# Draw original and augmented bounding boxes on images
+original_with_box = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+augmented_with_box = cv2.cvtColor(augmented_image, cv2.COLOR_GRAY2BGR)
+
+# Draw original box (red)
+for i in range(len(bounding_box)):
+    pt1 = (int(bounding_box[i][0]), int(bounding_box[i][1]))
+    pt2 = (int(bounding_box[(i + 1) % 20][0]), int(bounding_box[(i + 1) % 20][1]))
+    cv2.line(original_with_box, pt1, pt2, (0, 0, 255), 1)
+
+# Draw augmented box (green)
+for i in range(len(augmented_box)):
+    pt1 = (int(augmented_box[i][0]), int(augmented_box[i][1]))
+    pt2 = (int(augmented_box[(i + 1) % 20][0]), int(augmented_box[(i + 1) % 20][1]))
+    cv2.line(augmented_with_box, pt1, pt2, (0, 255, 0), 1)
+
+# Show results
+cv2.imshow("Original Image with Box", original_with_box)
+cv2.imshow("Augmented Image with Box", augmented_with_box)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+# Optional: Print augmented bounding box coordinates
+print("Augmented Bounding Box:")
+for pt in augmented_box:
+    print(pt)
